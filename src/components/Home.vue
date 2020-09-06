@@ -16,6 +16,7 @@
                         background-color="#333744"
                         text-color="#fff"
                         active-text-color="#409eff"
+                         :router="true" :default-active="activePath"
                         :collapse="isCollapsed" :collapse-transition="false">
                     <!--                    一级菜单-->
                     <el-submenu :key="item.id" :index="item.id+''" v-for="item in menulist">
@@ -27,7 +28,10 @@
                             <span>{{item.authName}}</span>
                         </template>
                         <!--                            二级菜单-->
-                        <el-menu-item :key="subItem.id" :index="subItem.id + ''" v-for="subItem in item.children">
+                        <el-menu-item :key="subItem.id" :index="'/'+subItem.path"
+                                      v-for="subItem in item.children"
+                                        @click="saveNavState('/'+subItem.path)"
+                        >
                             <template slot="title">
                                 <i class="el-icon-menu"></i>
                                 <span>{{subItem.authName}}</span>
@@ -37,7 +41,9 @@
                 </el-menu>
             </el-aside>
             <!--            主体-->
-            <el-main>Main</el-main>
+            <el-main>
+                <router-view></router-view>
+            </el-main>
         </el-container>
     </el-container>
 </template>
@@ -56,11 +62,14 @@
                   '145': 'iconfont icon-baobiao',
               },
               isCollapsed: false,
+              //背激活的链接地址
+              activePath: ''
           }
         },
         name: "Home",
         created: function () {
             this.getMenuList();
+            this.activePath = window.sessionStorage.getItem('activePath');
         },
         methods: {
             logout: function () {
@@ -72,12 +81,15 @@
                 if (res.meta.status !== 200) {
                     return this.$message.error(res.meta.msg);
                 }else{
-                    console.log(res.data);
                     this.menulist = res.data;
                 }
             },
             toggleCollapse: function () {
                 this.isCollapsed = !this.isCollapsed;
+            },
+            saveNavState: function (activePath) {
+                window.sessionStorage.setItem('activePath', activePath);
+                this.activePath = activePath;
             }
         }
     }
