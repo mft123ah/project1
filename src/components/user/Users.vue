@@ -44,7 +44,9 @@
                         </el-tooltip>
                         <!--                        分配角色-->
                         <el-tooltip effect="dark" content="分配角色" placement="top" :enterable="false">
-                            <el-button type="warning" icon="el-icon-setting" size="mini"></el-button>
+                            <el-button type="warning" icon="el-icon-setting" size="mini"
+                                       @click="setRole(scope.row)"
+                            ></el-button>
                         </el-tooltip>
                     </template>
                 </el-table-column>
@@ -109,6 +111,32 @@
     <el-button type="primary" @click="editUserSubmit">确 定</el-button>
   </span>
         </el-dialog>
+        <!--        分配角色-->
+        <el-dialog
+                title="分配角色"
+                :visible.sync="setRoleDialogVisible"
+                width="50%"
+                @click="setRoleDialogClosed"
+        >
+            <div>
+                <p>当前的用户：{{userInfo.username}}</p>
+                <p>当前的角色：{{userInfo.role_name}}</p>
+                <p>分配新角色：
+                    <el-select v-model="selectedRoleId" placeholder="请选择">
+                        <el-option
+                                v-for="item in roleslist"
+                                :key="item.id"
+                                :label="item.roleName"
+                                :value="item.id">
+                        </el-option>
+                    </el-select>
+                </p>
+            </div>
+            <span slot="footer" class="dialog-footer">
+    <el-button @click="setRoleDialogVisible = false">取 消</el-button>
+    <el-button type="primary" @click="saveRoleInfo">确 定</el-button>
+  </span>
+        </el-dialog>
     </div>
 </template>
 
@@ -119,18 +147,18 @@
             this.getUserList();
         },
         methods: {
-           async delUserSubmit(id){
-              const {data:res} =  await this.$axios.delete('users/' + id);
-               if (res.meta.status !== 200) {
-                   this.$message.error('删除用户失败');
-               }
-               this.$message({
-                   type: 'success',
-                   message: '删除成功!'
-               });
-               this.getUserList();
+            async delUserSubmit(id) {
+                const {data: res} = await this.$axios.delete('users/' + id);
+                if (res.meta.status !== 200) {
+                    this.$message.error('删除用户失败');
+                }
+                this.$message({
+                    type: 'success',
+                    message: '删除成功!'
+                });
+                this.getUserList();
             },
-            delUser(id){
+            delUser(id) {
                 this.$confirm('此操作将永久删除该文件, 是否继续?', '提示', {
                     confirmButtonText: '确定',
                     cancelButtonText: '取消',
@@ -187,7 +215,7 @@
                 this.$refs.addFormRef.resetFields();
             },
             editDialogClose() {
-                this.$refs.editFormRef.resetFields();
+                this.$refs.editFormRef.clearValidate();
             },
             getUserList: async function () {
                 const {data: res} = await this.$axios.get('/users', {params: this.queryInfo});
@@ -215,6 +243,34 @@
                     return this.$message.error('更新用户状态失败');
                 }
                 this.$message.success('更新状态成功');
+            },
+            async setRole(userInfo) {
+                this.userInfo = userInfo;
+                //获取角色列表
+                const {data: res} = await this.$axios.get('roles')
+                if (res.meta.status !== 200) {
+                    return this.$message.error('获取角色列表失败')
+                }
+                this.roleslist = res.data;
+                this.setRoleDialogVisible = true;
+            },
+            async saveRoleInfo() {
+                if (!this.selectedRoleId) {
+                    return this.$message.error('请选择角色')
+                }
+                const {data: res} = await this.$axios.put(`users/${this.userInfo.id}/role`, {
+                    rid: this.selectedRoleId
+                });
+                if (res.meta.status !== 200) {
+                    return this.$message.error('分配角色失败')
+                }
+                this.getUserList();
+                this.$message.success('分配角色成功');
+                this.setRoleDialogVisible = false;
+            },
+            setRoleDialogClosed(){
+                this.selectedRoleId = '';
+                this.userInfo = {};
             }
         },
         data: function () {
@@ -280,7 +336,11 @@
                         {required: true, message: '请输入手机', trigger: 'blur'},
                         {validator: checkMobile, trigger: 'blur'}
                     ]
-                }
+                },
+                setRoleDialogVisible: false,
+                userInfo: {},
+                roleslist: [],
+                selectedRoleId: ''
             }
 
         }
