@@ -1,5 +1,6 @@
 import Vue from 'vue';
 import ElementUI from 'element-ui';
+import ZkTable from 'vue-table-with-tree-grid'
 import 'element-ui/lib/theme-chalk/index.css';
 import App from './App.vue';
 import router from './router'
@@ -14,6 +15,7 @@ axios.interceptors.request.use(config=>{
 })
 Vue.prototype.$axios = axios;
 Vue.use(ElementUI);
+Vue.use(ZkTable);
 Vue.config.productionTip = false;
 
 new Vue({
