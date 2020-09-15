@@ -37,7 +37,25 @@
                     </el-button>
                     <!--                    动态参数表格-->
                     <el-table :data="manyTabData" border stripe>
-                        <el-table-column type="expand"></el-table-column>
+                        <el-table-column type="expand">
+                            <template slot-scope="scope">
+                                <el-tag :key="index" v-for="(item,index) in scope.row.attr_vals" closable @close="handleClosed(index,scope.row)">{{item}}
+                                </el-tag>
+                                <el-input
+                                        class="input-new-tag"
+                                        v-if="scope.row.inputVisible"
+                                        v-model="scope.row.inputValue"
+                                        ref="saveTagInput"
+                                        size="small"
+                                        @keyup.enter.native="handleInputConfirm(scope.row)"
+                                        @blur="handleInputConfirm(scope.row)"
+                                >
+                                </el-input>
+                                <el-button v-else class="button-new-tag" size="small" @click="showInput(scope.row)">+
+                                    New Tag
+                                </el-button>
+                            </template>
+                        </el-table-column>
                         <el-table-column type="index"></el-table-column>
                         <el-table-column label="参数名称" prop="attr_name"></el-table-column>
                         <el-table-column label="操作">
@@ -45,7 +63,10 @@
                                 <el-button type="primary" icon="el-icon-edit" size="mini"
                                            @click="showEditDialog(scope.row.attr_id)">编辑
                                 </el-button>
-                                <el-button type="danger" icon="el-icon-delete" size="mini">删除</el-button>
+                                <el-button type="danger" icon="el-icon-delete" size="mini"
+                                           @click="removeParams(scope.row.attr_id)"
+                                >删除
+                                </el-button>
                             </template>
                         </el-table-column>
                     </el-table>
@@ -56,7 +77,25 @@
                     </el-button>
                     <!-- 静态属性表格-->
                     <el-table :data="onlyTabData" border stripe>
-                        <el-table-column type="expand"></el-table-column>
+                        <el-table-column type="expand">
+                            <template slot-scope="scope">
+                                <el-tag :key="index" v-for="(item,index) in scope.row.attr_vals" closable @close="handleClosed(index,scope.row)">{{item}}
+                                </el-tag>
+                                <el-input
+                                        class="input-new-tag"
+                                        v-if="scope.row.inputVisible"
+                                        v-model="scope.row.inputValue"
+                                        ref="saveTagInput"
+                                        size="small"
+                                        @keyup.enter.native="handleInputConfirm(scope.row)"
+                                        @blur="handleInputConfirm(scope.row)"
+                                >
+                                </el-input>
+                                <el-button v-else class="button-new-tag" size="small" @click="showInput(scope.row)">+
+                                    New Tag
+                                </el-button>
+                            </template>
+                        </el-table-column>
                         <el-table-column type="index"></el-table-column>
                         <el-table-column label="属性名称" prop="attr_name"></el-table-column>
                         <el-table-column label="操作">
@@ -64,7 +103,10 @@
                                 <el-button type="primary" icon="el-icon-edit" size="mini"
                                            @click="showEditDialog(scope.row.attr_id)">编辑
                                 </el-button>
-                                <el-button type="danger" icon="el-icon-delete" size="mini">删除</el-button>
+                                <el-button type="danger" icon="el-icon-delete" size="mini"
+                                           @click="removeParams(scope.row.attr_id)"
+                                >删除
+                                </el-button>
                             </template>
                         </el-table-column>
                     </el-table>
@@ -134,6 +176,64 @@
             this.getCateList();
         },
         methods: {
+            handleClosed(index,row){
+                row.attr_vals.splice(index, 1);
+                this.saveAttrValues(row);
+            },
+            showInput(row) {
+                row.inputVisible = true;
+                //当页面上元素被重新渲染后才会执行回调函数中的代码
+                this.$nextTick(_ => {
+                    console.log(_);
+                    this.$refs.saveTagInput.$refs.input.focus();
+                });
+            },
+           async saveAttrValues(row){
+                const {data: res} = await this.$axios.put(`categories/${this.cateId}/attributes/${row.attr_id}`,
+                    {
+                        attr_name: row.attr_name,
+                        attr_sel: row.attr_sel,
+                        attr_vals: row.attr_vals.join(' ')
+                    })
+                if (res.meta.status !== 200) {
+                    return this.$message.error('修改参数失败')
+                }
+                this.$message.success('修改参数成功')
+            },
+           async handleInputConfirm(row) {
+                if (row.inputValue.trim().length === 0) {
+                    row.inputValue = ''
+                    row.inputVisible = false;
+                    return
+                }
+                //如果输入了内容则要后续处理
+                row.attr_vals.push(row.inputValue);
+                row.inputValue = '';
+                row.inputVisible = false;
+               this.saveAttrValues(row);
+            },
+            async delParams(attr_id) {
+                const {data: res} = await this.$axios.delete(`categories/${this.cateId}/attributes/${attr_id}`);
+                if (res.meta.status !== 200) {
+                    return this.$message.error('删除参数失败')
+                }
+                this.$message.success('删除参数成功')
+                this.getParamsData();
+            },
+            removeParams(attr_id) {
+                this.$confirm('此操作将永久删除该文件, 是否继续?', '提示', {
+                    confirmButtonText: '确定',
+                    cancelButtonText: '取消',
+                    type: 'warning'
+                }).then(() => {
+                    this.delParams(attr_id);
+                }).catch(() => {
+                    this.$message({
+                        type: 'info',
+                        message: '已取消删除'
+                    });
+                });
+            },
             async showEditDialog(attr_id) {
                 const {data: res} = await this.$axios.get(`categories/${this.cateId}/attributes/${attr_id}`, {params: {attr_sel: this.activeName}})
                 if (res.meta.status !== 200) {
@@ -143,7 +243,7 @@
                 this.editDialogVisible = true;
             },
             editParams() {
-                this.$refs.editFormRef.validate(async valid=>{
+                this.$refs.editFormRef.validate(async valid => {
                     if (!valid) {
                         return
                     }
@@ -185,6 +285,8 @@
             async getParamsData() {
                 if (this.selectedKeys.length !== 3) {
                     this.selectedKeys = [];
+                    this.manyTabData = [];
+                    this.onlyTabData = []
                     return;
                 }
                 // 根据所选分类id,和当前所处的面板，获取对应的参数
@@ -192,6 +294,12 @@
                 if (res.meta.status !== 200) {
                     return this.$message.error('获取参数列表失败')
                 }
+                res.data.forEach(item => {
+                    item.attr_vals = item.attr_vals ? item.attr_vals.split(' ') : [];
+                    item.inputVisible = false;
+                    item.inputValue = '';
+
+                })
                 if (this.activeName === 'many') {
                     this.manyTabData = res.data;
                 } else {
@@ -238,5 +346,13 @@
 <style lang="less" scoped>
     .cat_opt {
         margin: 15px 0;
+    }
+
+    .el-tag {
+        margin: 5px
+    }
+
+    .input-new-tag {
+        width: 120px;
     }
 </style>
